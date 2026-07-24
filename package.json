@@ -1,0 +1,19 @@
+{
+  "name": "passidex",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Passidex — EU-wide Digital Product Passport (DPP) compliance platform for SMEs, covering ESPR and CPR in one tool.",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev:web": "pnpm --filter @passidex/web dev",
+    "dev:api": "pnpm --filter @passidex/api start:dev",
+    "db:generate": "pnpm --filter @passidex/api prisma:generate",
+    "db:migrate": "pnpm --filter @passidex/api prisma:migrate",
+    "db:seed": "pnpm --filter @passidex/api prisma:seed",
+    "lint": "pnpm -r lint"
+  }
+}

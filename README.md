@@ -1,0 +1,81 @@
+# Passidex
+
+**EU-wide Digital Product Passport (DPP) compliance platform for SMEs.**
+
+Passidex covers **ESPR** (Ecodesign for Sustainable Products Regulation) **and CPR**
+(Construction Products Regulation) requirements in a single tool, so small and
+medium businesses don't need separate per-industry enterprise solutions.
+
+The core differentiator is **AI-assisted data collection from suppliers** — the
+biggest cost of DPP compliance for SMEs isn't the software, it's the manual work
+of gathering data from the supply chain.
+
+## Monorepo layout
+
+```
+passidex/
+├─ apps/
+│  ├─ web/          # React + Vite + Tailwind frontend (Passidex)
+│  └─ api/          # NestJS + Prisma + PostgreSQL backend
+├─ packages/
+│  └─ schema/       # Shared category/field definitions (ESPR/CPR) + EU DPP mapping
+```
+
+The **`@passidex/schema`** package is the single source of truth for what data
+each product category requires. Both the frontend and backend import it, so the
+UI, the "missing fields" logic, and the DPP export all stay in sync.
+
+## Data model (Phase 1)
+
+Every schema field of a product carries a **status** and full **history**:
+
+```
+MISSING → REQUESTED → RECEIVED_PENDING → CONFIRMED
+                          │ (low confidence → needsReview)
+                          └─ reject → back to REQUESTED / MISSING
+```
+
+- A product has one or more **components** (BOM); each may map to a **supplier**
+  that contributes part of the passport data.
+- Every field-value transition is recorded in an append-only **FieldEvent**
+  audit log (who, when, source) — a DPP must stay current across the whole
+  product lifecycle.
+- Field definitions carry a **`dppPath`** so the passport can be projected into
+  GS1 Digital Link / EU DPP Registry format without a data migration.
+
+## Roadmap
+
+| Phase | Scope | Status |
+|---|---|---|
+| 0 | Monorepo scaffold, Passidex branding, MVP frontend migration | ✅ this change |
+| 1 | Data model + Prisma migrations + CRUD + field state machine | ✅ this change |
+| 2 | Supplier request generation + email + reminders | ⏳ next |
+| 3 | Inbound email + document ingestion + AI extraction | ⏳ |
+| 4 | Admin dashboard (completeness, bottlenecks) + manual entry | ⏳ |
+| 5 | GS1 Digital Link / EU DPP Registry export | ⏳ |
+
+## Getting started
+
+```bash
+pnpm install
+
+# Backend (needs a PostgreSQL instance — see .env.example)
+cp .env.example .env
+pnpm db:generate
+pnpm db:migrate
+pnpm db:seed
+pnpm dev:api          # http://localhost:3001
+
+# Frontend
+pnpm dev:web          # http://localhost:5173
+```
+
+## Tech stack
+
+- **Frontend:** React, Vite, Tailwind CSS
+- **Backend:** NestJS (TypeScript), Prisma
+- **Database:** PostgreSQL (EU-hosted)
+- **Async jobs / reminders:** pg-boss (Phase 2)
+- **Email:** Postmark transactional + inbound (Phase 2)
+- **AI parsing:** Anthropic Claude, native PDF/image/spreadsheet understanding (Phase 3)
+- **Object storage:** S3-compatible, EU region (Phase 3)

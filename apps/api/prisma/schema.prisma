@@ -1,0 +1,308 @@
+// Passidex data model — Phase 1.
+//
+// Core idea: every schema field of a product carries a STATUS and a full,
+// append-only HISTORY. A product has one or more components (BOM); each may map
+// to a supplier that contributes part of the passport data. Field definitions
+// live in @passidex/schema (code, versioned) — this DB stores the *values* and
+// their lifecycle, keyed by (product, fieldKey).
+//
+// Phase 2/3 tables (DataRequest, InboundMessage, Document, Extraction) are
+// defined now so the structure is stable; their endpoints arrive in later phases.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- enums
+
+/// Lifecycle status of a single passport field.
+enum FieldStatus {
+  MISSING // manjka
+  REQUESTED // poslana zahteva
+  RECEIVED_PENDING // prejeto — čaka potrditev
+  CONFIRMED // potrjeno
+}
+
+/// Where a field's current value originated.
+enum FieldSource {
+  MANUAL // entered by an org user
+  SUPPLIER_EMAIL // typed by a supplier in an email reply
+  AI_EXTRACTED // parsed from a document/email by AI
+  IMPORTED // bulk import / ERP
+}
+
+/// Who performed a field transition (for the audit log).
+enum ActorType {
+  USER
+  SYSTEM
+  SUPPLIER
+  AI
+}
+
+/// Lifecycle of a data request sent to a supplier.
+enum DataRequestStatus {
+  DRAFT
+  SENT
+  REMINDED
+  ANSWERED
+  CLOSED
+}
+
+// ---------------------------------------------------------------- tenant
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users        User[]
+  products     Product[]
+  suppliers    Supplier[]
+  dataRequests DataRequest[]
+  messages     InboundMessage[]
+  documents    Document[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  orgId     String
+  email     String   @unique
+  name      String?
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+}
+
+// ---------------------------------------------------------------- catalogue
+
+model Product {
+  id            String   @id @default(cuid())
+  orgId         String
+  name          String
+  brand         String?
+  categoryKey   String
+  schemaVersion String
+  passportCode  String   @unique
+  /// Optional GTIN/EAN; when absent Passidex uses the internal passportCode.
+  gtin          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  components   Component[]
+  fieldValues  FieldValue[]
+  dataRequests DataRequest[]
+
+  @@index([orgId])
+  @@index([orgId, categoryKey])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  email     String?
+  /// BCP-47 language hint (e.g. "sl", "de") for localising requests.
+  language  String?
+  createdAt DateTime @default(now())
+
+  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  components   Component[]
+  dataRequests DataRequest[]
+
+  @@index([orgId])
+}
+
+/// A BOM line: a component/part of a product, optionally sourced from a supplier.
+model Component {
+  id         String   @id @default(cuid())
+  productId  String
+  supplierId String?
+  name       String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier    Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  fieldValues FieldValue[]
+
+  @@index([productId])
+  @@index([supplierId])
+}
+
+// ---------------------------------------------------------------- field state
+
+/// The concrete value + lifecycle state of one passport field for one product.
+/// `fieldKey` references a FieldDefinition.key in @passidex/schema.
+model FieldValue {
+  id String @id @default(cuid())
+
+  productId String
+  /// Which component/supplier is responsible for providing this field (attribution).
+  componentId String?
+  fieldKey    String
+
+  /// Structured value; shape depends on the field's `type` in the schema package.
+  value  Json?
+  status FieldStatus @default(MISSING)
+  /// Set when AI confidence is low or the value is ambiguous — flags manual review.
+  needsReview Boolean @default(false)
+  /// AI confidence 0..1 for the current proposed value, if AI-sourced.
+  confidence Float?
+  source     FieldSource?
+
+  /// The data request currently covering this field, if any.
+  currentRequestId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  component Component?   @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  events    FieldEvent[]
+
+  @@unique([productId, fieldKey])
+  @@index([productId, status])
+  @@index([status, needsReview])
+}
+
+/// Append-only audit log: every field transition (who, when, source, before/after).
+model FieldEvent {
+  id           String   @id @default(cuid())
+  fieldValueId String
+  at           DateTime @default(now())
+
+  actorType ActorType
+  /// User id / supplier id / extraction id, depending on actorType.
+  actorId String?
+
+  fromStatus FieldStatus?
+  toStatus   FieldStatus
+  oldValue   Json?
+  newValue   Json?
+
+  note String?
+  /// Free-form reference to the source (request id, message id, document id...).
+  sourceRef String?
+
+  fieldValue FieldValue @relation(fields: [fieldValueId], references: [id], onDelete: Cascade)
+
+  @@index([fieldValueId, at])
+}
+
+// ---------------------------------------------------------- supplier requests (Phase 2)
+
+model DataRequest {
+  id          String            @id @default(cuid())
+  orgId       String
+  productId   String
+  supplierId  String
+  componentId String?
+  language    String            @default("sl")
+  status      DataRequestStatus @default(DRAFT)
+
+  /// Unique inbound reply-to address minted for this request (Phase 2).
+  replyToAddress String? @unique
+
+  sentAt        DateTime?
+  dueAt         DateTime?
+  reminderCount Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  product      Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier     Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  fields       RequestField[]
+  messages     InboundMessage[]
+
+  @@index([orgId, status])
+  @@index([productId])
+  @@index([supplierId])
+}
+
+model RequestField {
+  id        String @id @default(cuid())
+  requestId String
+  fieldKey  String
+
+  request DataRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, fieldKey])
+}
+
+// --------------------------------------------------- inbound + AI parsing (Phase 3)
+
+model InboundMessage {
+  id         String   @id @default(cuid())
+  orgId      String
+  requestId  String?
+  fromEmail  String
+  subject    String?
+  rawBody    String?
+  receivedAt DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  request      DataRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  documents    Document[]
+  extractions  Extraction[]
+
+  @@index([orgId])
+  @@index([requestId])
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  orgId       String
+  messageId   String?
+  filename    String
+  contentType String
+  /// Object storage key (S3-compatible, EU region).
+  storageKey String
+  sizeBytes  Int?
+  createdAt  DateTime @default(now())
+
+  organization Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  message      InboundMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  extraction   Extraction?
+
+  @@index([orgId])
+  @@index([messageId])
+}
+
+model Extraction {
+  id         String   @id @default(cuid())
+  messageId  String?
+  documentId String?  @unique
+  model      String
+  rawJson    Json?
+  createdAt  DateTime @default(now())
+
+  message  InboundMessage?  @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  document Document?        @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  fields   ExtractedField[]
+
+  @@index([messageId])
+}
+
+model ExtractedField {
+  id           String  @id @default(cuid())
+  extractionId String
+  fieldKey     String
+  proposedValue Json?
+  confidence   Float?
+  needsReview  Boolean @default(false)
+
+  extraction Extraction @relation(fields: [extractionId], references: [id], onDelete: Cascade)
+
+  @@index([extractionId])
+}
