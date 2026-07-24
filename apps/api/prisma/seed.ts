@@ -5,6 +5,7 @@
  */
 import {
   ActorType,
+  DataRequestStatus,
   FieldSource,
   FieldStatus,
   PrismaClient,
@@ -157,14 +158,51 @@ async function main() {
     { source: FieldSource.AI_EXTRACTED, confidence: 0.41, needsReview: true },
   );
 
-  // 2) Battery — one requested, rest missing.
+  // 2) Battery — an open data request to the supplier covering two fields.
   const battery = await createProduct(
     org.id,
     "EV baterijski modul 75",
     "Vzorčna znamka",
     "batteries",
   );
-  await setField(battery.id, "cell_chemistry", FieldStatus.REQUESTED, null);
+  const batteryRequest = await prisma.dataRequest.create({
+    data: {
+      orgId: org.id,
+      productId: battery.id,
+      supplierId: supplier.id,
+      language: "sl",
+      status: DataRequestStatus.SENT,
+      sentAt: new Date(),
+      dueAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      fields: {
+        create: [{ fieldKey: "cell_chemistry" }, { fieldKey: "carbon_footprint" }],
+      },
+    },
+  });
+  await prisma.dataRequest.update({
+    where: { id: batteryRequest.id },
+    data: { replyToAddress: `req-${batteryRequest.id}@inbound.passidex.eu` },
+  });
+  for (const key of ["cell_chemistry", "carbon_footprint"]) {
+    const fv = await prisma.fieldValue.findFirst({
+      where: { productId: battery.id, fieldKey: key },
+    });
+    if (!fv) continue;
+    await prisma.fieldValue.update({
+      where: { id: fv.id },
+      data: { status: FieldStatus.REQUESTED, currentRequestId: batteryRequest.id },
+    });
+    await prisma.fieldEvent.create({
+      data: {
+        fieldValueId: fv.id,
+        actorType: ActorType.SYSTEM,
+        fromStatus: FieldStatus.MISSING,
+        toStatus: FieldStatus.REQUESTED,
+        sourceRef: batteryRequest.id,
+        note: "seed: zahteva dobavitelju",
+      },
+    });
+  }
 
   // 3) Construction door — fully confirmed (complete passport).
   const door = await createProduct(

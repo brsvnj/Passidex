@@ -75,6 +75,32 @@ export interface Organization {
   name: string;
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  email?: string | null;
+  language?: string | null;
+}
+
+export type DataRequestStatus =
+  | "DRAFT"
+  | "SENT"
+  | "REMINDED"
+  | "ANSWERED"
+  | "CLOSED";
+
+export interface DataRequest {
+  id: string;
+  productId: string;
+  supplierId: string;
+  status: DataRequestStatus;
+  language: string;
+  dueAt: string | null;
+  reminderCount: number;
+  fields: { fieldKey: string }[];
+  supplier?: { id: string; name: string };
+}
+
 export const api = {
   // schema
   categories: () =>
@@ -114,6 +140,37 @@ export const api = {
     req<FieldValue>(`/field-values/${id}/manual`, {
       method: "POST",
       body: JSON.stringify({ value }),
+    }),
+
+  // suppliers
+  listSuppliers: () => req<Supplier[]>("/suppliers"),
+  createSupplier: (input: { name: string; email?: string; language?: string }) =>
+    req<Supplier>("/suppliers", { method: "POST", body: JSON.stringify(input) }),
+
+  // data requests
+  listRequests: (productId?: string) =>
+    req<DataRequest[]>(
+      `/data-requests${productId ? `?productId=${encodeURIComponent(productId)}` : ""}`,
+    ),
+  createRequest: (input: {
+    productId: string;
+    supplierId: string;
+    fieldKeys?: string[];
+    language?: string;
+  }) =>
+    req<DataRequest>("/data-requests", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  cancelRequest: (id: string) =>
+    req<{ ok: boolean }>(`/data-requests/${id}/cancel`, {
+      method: "POST",
+      body: "{}",
+    }),
+  runReminders: () =>
+    req<{ processed: number; sent: number }>("/data-requests/run-reminders", {
+      method: "POST",
+      body: "{}",
     }),
 
   // dashboard

@@ -7,6 +7,9 @@ import { SuppliersModule } from "./suppliers/suppliers.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { FieldValuesModule } from "./field-values/field-values.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
+import { EmailModule } from "./email/email.module";
+import { DataRequestsModule } from "./data-requests/data-requests.module";
+import { QueueModule } from "./queue/queue.module";
 
 @Module({
   imports: [
@@ -17,6 +20,9 @@ import { DashboardModule } from "./dashboard/dashboard.module";
     SuppliersModule,
     ProductsModule,
     FieldValuesModule,
+    EmailModule,
+    DataRequestsModule,
+    QueueModule,
     DashboardModule,
   ],
 })

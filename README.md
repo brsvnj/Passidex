@@ -47,12 +47,29 @@ MISSING → REQUESTED → RECEIVED_PENDING → CONFIRMED
 
 | Phase | Scope | Status |
 |---|---|---|
-| 0 | Monorepo scaffold, Passidex branding, MVP frontend migration | ✅ this change |
-| 1 | Data model + Prisma migrations + CRUD + field state machine | ✅ this change |
-| 2 | Supplier request generation + email + reminders | ⏳ next |
-| 3 | Inbound email + document ingestion + AI extraction | ⏳ |
+| 0 | Monorepo scaffold, Passidex branding, MVP frontend migration | ✅ |
+| 1 | Data model + Prisma migrations + CRUD + field state machine | ✅ |
+| 2 | Supplier request generation + email + reminders | ✅ |
+| 3 | Inbound email + document ingestion + AI extraction | ⏳ next |
 | 4 | Admin dashboard (completeness, bottlenecks) + manual entry | ⏳ |
 | 5 | GS1 Digital Link / EU DPP Registry export | ⏳ |
+
+### Phase 2 — supplier requests & reminders
+
+- Passidex detects the **MISSING** fields a supplier should provide (schema
+  `suppliedBy: "supplier"`) and bundles them into a **DataRequest**.
+- It generates a **localized email** (sl / en / de, chosen from the supplier's
+  language) with a unique per-request reply-to address, and moves those fields
+  to **REQUESTED**.
+- Without `POSTMARK_SERVER_TOKEN`, emails are logged to the console so the full
+  lifecycle is testable in dev; suppliers with no email address create a request
+  that stays `DRAFT` for manual entry.
+- A **pg-boss** cron sweep resends reminders after `REMINDER_AFTER_DAYS` of no
+  answer, up to `MAX_REMINDERS`. `POST /api/data-requests/run-reminders` runs the
+  sweep on demand.
+
+Key endpoints: `POST /api/data-requests`, `GET /api/data-requests`,
+`POST /api/data-requests/:id/cancel`, `POST /api/data-requests/run-reminders`.
 
 ## Getting started
 
