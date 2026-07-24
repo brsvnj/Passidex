@@ -10,6 +10,7 @@ import { DashboardModule } from "./dashboard/dashboard.module";
 import { EmailModule } from "./email/email.module";
 import { DataRequestsModule } from "./data-requests/data-requests.module";
 import { QueueModule } from "./queue/queue.module";
+import { InboundModule } from "./inbound/inbound.module";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { QueueModule } from "./queue/queue.module";
     EmailModule,
     DataRequestsModule,
     QueueModule,
+    InboundModule,
     DashboardModule,
   ],
 })

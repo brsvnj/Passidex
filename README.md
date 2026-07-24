@@ -50,8 +50,8 @@ MISSING → REQUESTED → RECEIVED_PENDING → CONFIRMED
 | 0 | Monorepo scaffold, Passidex branding, MVP frontend migration | ✅ |
 | 1 | Data model + Prisma migrations + CRUD + field state machine | ✅ |
 | 2 | Supplier request generation + email + reminders | ✅ |
-| 3 | Inbound email + document ingestion + AI extraction | ⏳ next |
-| 4 | Admin dashboard (completeness, bottlenecks) + manual entry | ⏳ |
+| 3 | Inbound email + document ingestion + AI extraction | ✅ |
+| 4 | Admin dashboard (completeness, bottlenecks) + manual entry | ⏳ next |
 | 5 | GS1 Digital Link / EU DPP Registry export | ⏳ |
 
 ### Phase 2 — supplier requests & reminders
@@ -70,6 +70,24 @@ MISSING → REQUESTED → RECEIVED_PENDING → CONFIRMED
 
 Key endpoints: `POST /api/data-requests`, `GET /api/data-requests`,
 `POST /api/data-requests/:id/cancel`, `POST /api/data-requests/run-reminders`.
+
+### Phase 3 — inbound email & AI extraction
+
+- Suppliers reply to the request's unique reply-to address. Postmark delivers the
+  email to `POST /api/inbound/postmark?token=…`, which matches it to the
+  `DataRequest`, stores the message and attachments (S3, or local disk in dev),
+  and marks the request **ANSWERED**.
+- A pg-boss `parse.message` job (or inline when the queue is disabled) sends the
+  email text + attachments to **Claude** via forced tool use. Claude reads PDFs
+  and images natively and returns structured `{ fieldKey, value, confidence }`.
+- Each mapped value is **proposed** into `RECEIVED_PENDING` — never auto-confirmed.
+  Low-confidence or ambiguous values are flagged `needsReview`. Already-confirmed
+  fields are never overwritten. The full extraction is stored (`Extraction` /
+  `ExtractedField`) for audit.
+- The dashboard's **"Čaka potrditev"** queue lets a user confirm / correct /
+  reject each proposal.
+
+Configure Postmark to POST inbound mail to `…/api/inbound/postmark?token=$INBOUND_WEBHOOK_SECRET`.
 
 ## Getting started
 

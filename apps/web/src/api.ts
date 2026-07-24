@@ -70,6 +70,10 @@ export interface ProductDetail extends Product {
   completeness: Completeness;
 }
 
+export interface PendingField extends FieldValue {
+  product: { id: string; name: string; categoryKey: string };
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -128,7 +132,7 @@ export const api = {
     req<void>(`/products/${id}`, { method: "DELETE" }),
 
   // field-value lifecycle
-  pendingFields: () => req<FieldValue[]>("/field-values/pending"),
+  pendingFields: () => req<PendingField[]>("/field-values/pending"),
   confirmField: (id: string, value?: unknown) =>
     req<FieldValue>(`/field-values/${id}/confirm`, {
       method: "POST",

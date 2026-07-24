@@ -216,6 +216,83 @@ function SuppliersManager({
   );
 }
 
+function ReviewQueue({
+  pending,
+  onChange,
+}: {
+  pending: import("../api").PendingField[];
+  onChange: () => void;
+}) {
+  if (pending.length === 0) return null;
+  return (
+    <div
+      className="rounded-[4px] mb-6 p-4"
+      style={{ background: PAPER, border: `1px solid ${COPPER}` }}
+    >
+      <p className="text-sm mb-3" style={{ fontFamily: "'Fraunces', serif" }}>
+        Čaka potrditev ({pending.length})
+        <span className="text-xs opacity-60"> — AI predlogi in odgovori dobaviteljev</span>
+      </p>
+      <div className="space-y-2">
+        {pending.map((f) => {
+          const def = getFieldDefinition(f.product.categoryKey, f.fieldKey);
+          return (
+            <div
+              key={f.id}
+              className="flex items-center justify-between gap-3 text-sm py-1 border-b last:border-0"
+              style={{ borderColor: LINE }}
+            >
+              <span className="min-w-0">
+                <span className="opacity-60">{f.product.name} · </span>
+                {def?.label ?? f.fieldKey}:{" "}
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                  {formatValue(def, f.value)}
+                </span>
+                {f.confidence != null && (
+                  <span className="opacity-50 text-xs">
+                    {" "}
+                    · gotovost {Math.round(f.confidence * 100)}%
+                  </span>
+                )}
+                {f.needsReview && (
+                  <span
+                    className="ml-2 text-[10px] px-1.5 py-0.5 rounded-[3px]"
+                    style={{ background: "rgba(183,121,31,0.16)", color: "#B7791F" }}
+                  >
+                    ročni pregled
+                  </span>
+                )}
+              </span>
+              <span className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={async () => {
+                    await api.confirmField(f.id);
+                    onChange();
+                  }}
+                  className="text-[11px] px-2 py-1 rounded-[3px]"
+                  style={{ background: FOREST, color: PAPER }}
+                >
+                  Potrdi
+                </button>
+                <button
+                  onClick={async () => {
+                    await api.rejectField(f.id);
+                    onChange();
+                  }}
+                  className="text-[11px] px-2 py-1 rounded-[3px]"
+                  style={{ color: COPPER, border: `1px solid ${COPPER}` }}
+                >
+                  Zavrni
+                </button>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SendRequest({
   product,
   suppliers,
@@ -577,6 +654,9 @@ export function Dashboard() {
   const [ready, setReady] = useState(!!getOrgId());
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [pending, setPending] = useState<
+    Awaited<ReturnType<typeof api.pendingFields>>
+  >([]);
   const [summary, setSummary] = useState<Awaited<
     ReturnType<typeof api.summary>
   > | null>(null);
@@ -589,14 +669,16 @@ export function Dashboard() {
 
   async function refresh() {
     try {
-      const [p, s, sup] = await Promise.all([
+      const [p, s, sup, pend] = await Promise.all([
         api.listProducts(),
         api.summary(),
         api.listSuppliers(),
+        api.pendingFields(),
       ]);
       setProducts(p);
       setSummary(s);
       setSuppliers(sup);
+      setPending(pend);
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -644,6 +726,8 @@ export function Dashboard() {
           <Stat label="Čaka potrditev" value={summary.awaitingConfirmation} />
         </div>
       )}
+
+      <ReviewQueue pending={pending} onChange={refresh} />
 
       <SuppliersManager suppliers={suppliers} onChange={refresh} />
 
