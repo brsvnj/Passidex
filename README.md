@@ -51,8 +51,8 @@ MISSING → REQUESTED → RECEIVED_PENDING → CONFIRMED
 | 1 | Data model + Prisma migrations + CRUD + field state machine | ✅ |
 | 2 | Supplier request generation + email + reminders | ✅ |
 | 3 | Inbound email + document ingestion + AI extraction | ✅ |
-| 4 | Admin dashboard (completeness, bottlenecks) + manual entry | ⏳ next |
-| 5 | GS1 Digital Link / EU DPP Registry export | ⏳ |
+| 4 | Admin dashboard (completeness, bottlenecks) + manual entry | ✅ |
+| 5 | GS1 Digital Link / EU DPP Registry export | ✅ |
 
 ### Phase 2 — supplier requests & reminders
 
@@ -88,6 +88,22 @@ Key endpoints: `POST /api/data-requests`, `GET /api/data-requests`,
   reject each proposal.
 
 Configure Postmark to POST inbound mail to `…/api/inbound/postmark?token=$INBOUND_WEBHOOK_SECRET`.
+
+### Phase 4 — supply-chain analytics
+
+`GET /api/dashboard/analytics` returns where compliance is stuck: field-status
+distribution, request-status counts, **per-supplier** open / overdue / answered
+counts and **average response time**, and the oldest open requests. The dashboard
+renders this as a collapsible "Analitika oskrbovalne verige" panel.
+
+### Phase 5 — GS1 Digital Link / EU DPP export
+
+`GET /api/products/:id/passport` projects a product's **confirmed** field values
+into a DPP document keyed by each field's `dppPath`, together with a **GS1 Digital
+Link** (`https://{resolver}/01/{gtin}`, or a Passidex resolver URI when there's no
+GTIN) and a compliance block listing any still-missing required fields. It's a
+pure projection over stored data — when the EU DPP Registry finalises its schema,
+only this serializer changes, not the model.
 
 ## Getting started
 

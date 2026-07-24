@@ -11,6 +11,7 @@ import { EmailModule } from "./email/email.module";
 import { DataRequestsModule } from "./data-requests/data-requests.module";
 import { QueueModule } from "./queue/queue.module";
 import { InboundModule } from "./inbound/inbound.module";
+import { ExportModule } from "./export/export.module";
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { InboundModule } from "./inbound/inbound.module";
     DataRequestsModule,
     QueueModule,
     InboundModule,
+    ExportModule,
     DashboardModule,
   ],
 })

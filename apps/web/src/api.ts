@@ -130,6 +130,12 @@ export const api = {
     req<Product>("/products", { method: "POST", body: JSON.stringify(input) }),
   deleteProduct: (id: string) =>
     req<void>(`/products/${id}`, { method: "DELETE" }),
+  exportPassport: (id: string) =>
+    req<{
+      gs1DigitalLink: string;
+      compliance: { complete: boolean; missingRequired: string[] };
+      [k: string]: unknown;
+    }>(`/products/${id}/passport`),
 
   // field-value lifecycle
   pendingFields: () => req<PendingField[]>("/field-values/pending"),
@@ -178,6 +184,29 @@ export const api = {
     }),
 
   // dashboard
+  analytics: () =>
+    req<{
+      fieldStatus: Record<string, number>;
+      requestStatus: Record<string, number>;
+      overdue: number;
+      suppliers: {
+        supplierId: string;
+        name: string;
+        hasEmail: boolean;
+        open: number;
+        overdue: number;
+        answered: number;
+        avgResponseHours: number | null;
+      }[];
+      oldestOpenRequests: {
+        requestId: string;
+        productName: string;
+        supplierName: string;
+        status: string;
+        ageDays: number;
+        overdue: boolean;
+      }[];
+    }>("/dashboard/analytics"),
   summary: () =>
     req<{
       productsTotal: number;

@@ -14,6 +14,7 @@ import {
 import { COPPER, FOREST, INK, LINE, PAPER } from "../theme";
 import { formatValue, STATUS_META } from "../format";
 import { parseInput } from "../valueInput";
+import { Analytics } from "./Analytics";
 
 function Bar({ score }: { score: number }) {
   return (
@@ -524,6 +525,9 @@ function ProductCard({
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<ProductDetail | null>(null);
   const [requests, setRequests] = useState<DataRequest[]>([]);
+  const [exported, setExported] = useState<Awaited<
+    ReturnType<typeof api.exportPassport>
+  > | null>(null);
   const cat = categoryOrDefault(product.categoryKey);
 
   async function load() {
@@ -600,6 +604,43 @@ function ProductCard({
           ))}
 
           <SendRequest product={product} suppliers={suppliers} onSent={load} />
+
+          <div className="mt-2">
+            <button
+              onClick={async () => setExported(await api.exportPassport(product.id))}
+              className="text-[11px] px-2 py-1 rounded-[3px]"
+              style={{ border: `1px solid ${LINE}` }}
+            >
+              Izvozi DPP (GS1)
+            </button>
+            {exported && (
+              <div className="mt-2 text-[11px]">
+                <p>
+                  GS1 Digital Link:{" "}
+                  <a
+                    href={exported.gs1DigitalLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline"
+                    style={{ color: FOREST, fontFamily: "'IBM Plex Mono', monospace" }}
+                  >
+                    {exported.gs1DigitalLink}
+                  </a>
+                </p>
+                <p className="mt-0.5" style={{ color: exported.compliance.complete ? FOREST : COPPER }}>
+                  {exported.compliance.complete
+                    ? "Vsa obvezna polja potrjena — passport je pripravljen."
+                    : `Manjka ${exported.compliance.missingRequired.length} obveznih polj.`}
+                </p>
+                <pre
+                  className="mt-2 p-2 rounded-[3px] overflow-x-auto"
+                  style={{ background: "#F5F3EA", border: `1px solid ${LINE}`, maxHeight: 220 }}
+                >
+                  {JSON.stringify(exported, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
 
           {requests.length > 0 && (
             <div className="mt-3 pt-3 border-t" style={{ borderColor: LINE }}>
@@ -728,6 +769,8 @@ export function Dashboard() {
       )}
 
       <ReviewQueue pending={pending} onChange={refresh} />
+
+      <Analytics />
 
       <SuppliersManager suppliers={suppliers} onChange={refresh} />
 
