@@ -6,6 +6,7 @@ import {
   Query,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Public } from "../auth/public.decorator";
 import { InboundService } from "./inbound.service";
 import type { PostmarkInbound } from "./postmark.types";
 
@@ -21,6 +22,7 @@ export class InboundController {
     private readonly config: ConfigService,
   ) {}
 
+  @Public()
   @Post("postmark")
   postmark(@Body() payload: PostmarkInbound, @Query("token") token?: string) {
     const secret = this.config.get<string>("INBOUND_WEBHOOK_SECRET");

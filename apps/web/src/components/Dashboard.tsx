@@ -3,10 +3,9 @@ import { CATEGORIES, categoryOrDefault, getFieldDefinition } from "@passidex/sch
 import { Check, ChevronDown, Mail, Plus, Send, X } from "lucide-react";
 import {
   api,
-  getOrgId,
-  setOrgId,
+  UnauthorizedError,
+  type AuthUser,
   type DataRequest,
-  type Organization,
   type Product,
   type ProductDetail,
   type Supplier,
@@ -38,62 +37,125 @@ function Bar({ score }: { score: number }) {
   );
 }
 
-function OrgBootstrap({ onReady }: { onReady: () => void }) {
-  const [orgs, setOrgs] = useState<Organization[]>([]);
+function AuthPanel({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [orgName, setOrgName] = useState("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    api.listOrgs().then(setOrgs).catch(() => setOrgs([]));
-  }, []);
-
-  async function create() {
-    if (!name.trim()) return;
-    const org = await api.createOrg(name.trim());
-    setOrgId(org.id);
-    onReady();
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr("");
+    try {
+      const user =
+        mode === "login"
+          ? await api.login(email.trim(), password)
+          : await api.register({
+              orgName: orgName.trim(),
+              email: email.trim(),
+              password,
+              name: name.trim() || undefined,
+            });
+      onAuthed(user);
+    } catch (e2) {
+      setErr(
+        mode === "login"
+          ? "Napačna e-pošta ali geslo."
+          : (e2 as Error).message.replace(/^API \d+:\s*/, ""),
+      );
+    } finally {
+      setBusy(false);
+    }
   }
+
+  const input =
+    "w-full px-3 py-2 rounded-[3px] text-sm outline-none";
+  const inputStyle = { border: `1px solid ${LINE}`, background: "#F5F3EA" };
 
   return (
     <div
-      className="rounded-[4px] p-6"
+      className="rounded-[4px] p-6 max-w-md"
       style={{ background: PAPER, border: `1px solid ${LINE}` }}
     >
-      <p className="text-sm mb-4 opacity-80">
-        Izberi ali ustvari podjetje (najemnika), da se poveže z zaledjem Passidex.
-      </p>
-      {orgs.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {orgs.map((o) => (
-            <button
-              key={o.id}
-              onClick={() => {
-                setOrgId(o.id);
-                onReady();
-              }}
-              className="text-xs px-3 py-1.5 rounded-[3px]"
-              style={{ background: INK, color: PAPER }}
-            >
-              {o.name}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="flex gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Ime novega podjetja"
-          className="flex-1 px-3 py-2 rounded-[3px] text-sm outline-none"
-          style={{ border: `1px solid ${LINE}`, background: "#F5F3EA" }}
-        />
+      <div className="flex gap-4 mb-4 text-sm">
         <button
-          onClick={create}
-          className="text-sm px-4 py-2 rounded-[3px]"
-          style={{ background: FOREST, color: PAPER }}
+          onClick={() => setMode("login")}
+          className="pb-1"
+          style={{
+            borderBottom: mode === "login" ? `2px solid ${FOREST}` : "2px solid transparent",
+            opacity: mode === "login" ? 1 : 0.6,
+          }}
         >
-          Ustvari
+          Prijava
+        </button>
+        <button
+          onClick={() => setMode("register")}
+          className="pb-1"
+          style={{
+            borderBottom: mode === "register" ? `2px solid ${FOREST}` : "2px solid transparent",
+            opacity: mode === "register" ? 1 : 0.6,
+          }}
+        >
+          Registracija podjetja
         </button>
       </div>
+
+      <form onSubmit={submit} className="space-y-3">
+        {mode === "register" && (
+          <>
+            <input
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder="Ime podjetja"
+              className={input}
+              style={inputStyle}
+              required
+            />
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Tvoje ime (neobvezno)"
+              className={input}
+              style={inputStyle}
+            />
+          </>
+        )}
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="E-pošta"
+          className={input}
+          style={inputStyle}
+          required
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={mode === "register" ? "Geslo (min. 8 znakov)" : "Geslo"}
+          className={input}
+          style={inputStyle}
+          required
+        />
+        {err && (
+          <p className="text-sm" style={{ color: COPPER }}>
+            {err}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={busy}
+          className="text-sm px-4 py-2.5 rounded-[3px] w-full disabled:opacity-50"
+          style={{ background: FOREST, color: PAPER }}
+        >
+          {busy ? "…" : mode === "login" ? "Prijava" : "Ustvari račun"}
+        </button>
+      </form>
     </div>
   );
 }
@@ -692,7 +754,8 @@ function ProductCard({
 }
 
 export function Dashboard() {
-  const [ready, setReady] = useState(!!getOrgId());
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [checking, setChecking] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [pending, setPending] = useState<
@@ -722,7 +785,8 @@ export function Dashboard() {
       setPending(pend);
       setError("");
     } catch (e) {
-      setError((e as Error).message);
+      if (e instanceof UnauthorizedError) setUser(null);
+      else setError((e as Error).message);
     }
   }
 
@@ -733,9 +797,26 @@ export function Dashboard() {
   }
 
   useEffect(() => {
-    if (ready) void refresh();
+    api
+      .me()
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setChecking(false));
+  }, []);
+
+  useEffect(() => {
+    if (user) void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+  }, [user]);
+
+  async function logout() {
+    await api.logout().catch(() => undefined);
+    setUser(null);
+    setProducts([]);
+    setSuppliers([]);
+    setPending([]);
+    setSummary(null);
+  }
 
   async function addProduct(e: React.FormEvent) {
     e.preventDefault();
@@ -755,10 +836,23 @@ export function Dashboard() {
     }
   }
 
-  if (!ready) return <OrgBootstrap onReady={() => setReady(true)} />;
+  if (checking) return <p className="text-sm opacity-60">Nalagam…</p>;
+  if (!user) return <AuthPanel onAuthed={setUser} />;
 
   return (
     <div>
+      <div
+        className="flex items-center justify-between mb-6 pb-3 border-b text-sm"
+        style={{ borderColor: LINE }}
+      >
+        <span className="opacity-70">
+          {user.orgName} · {user.email}
+        </span>
+        <button onClick={logout} className="underline opacity-70 hover:opacity-100">
+          Odjava
+        </button>
+      </div>
+
       {summary && (
         <div className="flex flex-wrap gap-3 mb-6">
           <Stat label="Izdelki" value={summary.productsTotal} />

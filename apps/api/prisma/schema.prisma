@@ -69,12 +69,14 @@ model Organization {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  orgId     String
-  email     String   @unique
-  name      String?
-  role      String   @default("member")
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  orgId        String
+  email        String   @unique
+  name         String?
+  /// bcrypt hash; null for seed/invited users who haven't set a password yet.
+  passwordHash String?
+  role         String   @default("member")
+  createdAt    DateTime @default(now())
 
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 

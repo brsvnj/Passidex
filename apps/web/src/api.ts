@@ -12,29 +12,34 @@ export type FieldStatus =
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
-/** For Phase 1 the active org id is kept in localStorage; auth replaces this. */
-export function getOrgId(): string | null {
-  return localStorage.getItem("passidex:orgId");
-}
-export function setOrgId(id: string): void {
-  localStorage.setItem("passidex:orgId", id);
-}
+/** Thrown on 401 so the UI can show the login screen. */
+export class UnauthorizedError extends Error {}
 
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const orgId = getOrgId();
   const res = await fetch(`${API_URL}/api${path}`, {
     ...init,
+    // Session lives in an httpOnly cookie; always send credentials.
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(orgId ? { "X-Org-Id": orgId } : {}),
       ...(init.headers ?? {}),
     },
   });
+  if (res.status === 401) throw new UnauthorizedError("Not authenticated");
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`API ${res.status}: ${body}`);
   }
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  orgId: string;
+  orgName: string;
 }
 
 export interface Completeness {
@@ -74,11 +79,6 @@ export interface PendingField extends FieldValue {
   product: { id: string; name: string; categoryKey: string };
 }
 
-export interface Organization {
-  id: string;
-  name: string;
-}
-
 export interface Supplier {
   id: string;
   name: string;
@@ -106,17 +106,24 @@ export interface DataRequest {
 }
 
 export const api = {
+  // auth
+  me: () => req<AuthUser>("/auth/me"),
+  register: (input: {
+    orgName: string;
+    email: string;
+    password: string;
+    name?: string;
+  }) => req<AuthUser>("/auth/register", { method: "POST", body: JSON.stringify(input) }),
+  login: (email: string, password: string) =>
+    req<AuthUser>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  logout: () => req<{ ok: boolean }>("/auth/logout", { method: "POST", body: "{}" }),
+
   // schema
   categories: () =>
     req<{ version: string; categories: CategoryDefinition[] }>("/schema/categories"),
-
-  // organizations (bootstrap)
-  listOrgs: () => req<Organization[]>("/organizations"),
-  createOrg: (name: string) =>
-    req<Organization>("/organizations", {
-      method: "POST",
-      body: JSON.stringify({ name }),
-    }),
 
   // products
   listProducts: () => req<Product[]>("/products"),

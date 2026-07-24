@@ -105,6 +105,18 @@ GTIN) and a compliance block listing any still-missing required fields. It's a
 pure projection over stored data — when the EU DPP Registry finalises its schema,
 only this serializer changes, not the model.
 
+## Authentication & multi-tenancy
+
+Every request is scoped to an **organization** (tenant). Auth is email + password
+(bcrypt) with a JWT carried in an **httpOnly session cookie**; a global guard
+resolves `orgId` + `userId` from the verified token, so controllers stay tenant-safe
+without any header juggling. `POST /api/auth/register` creates a new org and its
+owner user; `POST /api/auth/login`, `POST /api/auth/logout`, and `GET /api/auth/me`
+manage the session. Routes are authenticated by default; only `/api/auth/*` and the
+inbound webhook are `@Public()`.
+
+After seeding, log in with **`demo@passidex.eu` / `passidex123`**.
+
 ## Getting started
 
 ```bash

@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 import { fieldsOf, passportPrefix, SCHEMA_VERSION } from "@passidex/schema";
 import { randomBytes } from "node:crypto";
+import * as bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -98,7 +99,14 @@ async function main() {
   const org = await prisma.organization.create({
     data: {
       name: "Demo d.o.o.",
-      users: { create: { email: "demo@passidex.eu", name: "Demo uporabnik" } },
+      users: {
+        create: {
+          email: "demo@passidex.eu",
+          name: "Demo uporabnik",
+          role: "owner",
+          passwordHash: await bcrypt.hash("passidex123", 10),
+        },
+      },
     },
   });
 
@@ -236,7 +244,7 @@ async function main() {
 
   // eslint-disable-next-line no-console
   console.log(
-    `Seeded org "${org.name}" (id ${org.id}) with 3 products. Use header X-Org-Id: ${org.id}`,
+    `Seeded org "${org.name}" with 3 products. Log in as demo@passidex.eu / passidex123`,
   );
 }
 
