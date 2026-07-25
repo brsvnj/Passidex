@@ -99,7 +99,7 @@ export class FieldValueService {
     },
   ) {
     const fv = await this.getOrThrow(fieldValueId);
-    const value = validateFieldValue(fv.product.categoryKey, fv.fieldKey, opts.value);
+    const value = this.validate(fv.product.categoryKey, fv.fieldKey, opts.value);
     const needsReview = computeNeedsReview({
       confidence: opts.confidence,
       ambiguous: opts.ambiguous,
@@ -131,7 +131,7 @@ export class FieldValueService {
     this.assertFrom(fv.status, [FieldStatus.RECEIVED_PENDING], "confirm");
     const corrected =
       opts.value !== undefined
-        ? validateFieldValue(fv.product.categoryKey, fv.fieldKey, opts.value)
+        ? this.validate(fv.product.categoryKey, fv.fieldKey, opts.value)
         : undefined;
     return this.transition(fv, {
       toStatus: FieldStatus.CONFIRMED,
@@ -171,7 +171,7 @@ export class FieldValueService {
   /** Authoritative manual entry by an org user → CONFIRMED from any state. */
   async manualSet(fieldValueId: string, opts: { value: unknown; actor: Actor }) {
     const fv = await this.getOrThrow(fieldValueId);
-    const value = validateFieldValue(fv.product.categoryKey, fv.fieldKey, opts.value);
+    const value = this.validate(fv.product.categoryKey, fv.fieldKey, opts.value);
     return this.transition(fv, {
       toStatus: FieldStatus.CONFIRMED,
       newValue: value,
@@ -214,6 +214,15 @@ export class FieldValueService {
     });
     if (!fv) throw new NotFoundException(`FieldValue ${id} not found`);
     return fv;
+  }
+
+  /** Structural validation, surfaced to the client as 400 rather than 500. */
+  private validate(categoryKey: string, fieldKey: string, value: unknown): unknown {
+    try {
+      return validateFieldValue(categoryKey, fieldKey, value);
+    } catch (e) {
+      throw new BadRequestException((e as Error).message);
+    }
   }
 
   private assertFrom(current: FieldStatus, allowed: FieldStatus[], action: string) {

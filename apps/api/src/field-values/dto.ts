@@ -1,9 +1,14 @@
-import { IsOptional, IsString, MaxLength } from "class-validator";
+import { Allow, IsOptional, IsString, MaxLength } from "class-validator";
 
-/** Value payloads are validated structurally against the schema in the service. */
+/**
+ * Value payloads are validated structurally against the schema in the service,
+ * not here. `@Allow()` keeps the free-form `value` from being stripped by the
+ * global whitelisting ValidationPipe.
+ */
 export class ConfirmFieldDto {
   /** Optional corrected value ("popravi") applied at confirmation. */
   @IsOptional()
+  @Allow()
   value?: unknown;
 
   @IsOptional()
@@ -20,5 +25,6 @@ export class RejectFieldDto {
 }
 
 export class ManualSetFieldDto {
+  @Allow()
   value!: unknown;
 }

@@ -165,8 +165,18 @@ the shared category schema, and the frontend value parser. CI runs
 `install → prisma generate → build → test` on every PR.
 
 ```bash
-pnpm test          # all packages
+pnpm test          # unit tests, all packages (no DB needed)
 pnpm -F @passidex/api test
+```
+
+**End-to-end** tests boot the real Nest app (supertest) against a throwaway
+PostgreSQL and cover the full HTTP flows — auth/session, product field lifecycle
++ DPP export, supplier request + inbound webhook, team invitations, and tenant
+isolation. CI runs them in a separate job with a Postgres service.
+
+```bash
+DATABASE_URL=postgresql://…/passidex_test JWT_SECRET=dev \
+  pnpm -F @passidex/api test:e2e
 ```
 
 ## Tech stack

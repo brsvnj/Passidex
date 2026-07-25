@@ -31,3 +31,37 @@ jobs:
 
       - name: Run tests
         run: pnpm -r test
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: passidex
+          POSTGRES_PASSWORD: passidex
+          POSTGRES_DB: passidex_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U passidex"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://passidex:passidex@localhost:5432/passidex_test?schema=public
+      JWT_SECRET: ci-test-secret
+      DISABLE_SCHEDULER: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm --filter @passidex/api prisma:generate
+      - name: Run e2e tests
+        run: pnpm --filter @passidex/api test:e2e
