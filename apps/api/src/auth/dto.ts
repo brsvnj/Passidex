@@ -35,3 +35,28 @@ export class LoginDto {
   @MaxLength(200)
   password!: string;
 }
+
+export class ForgotPasswordDto {
+  @IsEmail()
+  email!: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  token!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(200)
+  password!: string;
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(200)
+  newPassword!: string;
+}

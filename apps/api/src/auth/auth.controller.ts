@@ -6,7 +6,13 @@ import { CurrentUser } from "./current-user.decorator";
 import type { AuthContext } from "./jwt-auth.guard";
 import { Public } from "./public.decorator";
 import { clearSessionCookie, setSessionCookie } from "./session-cookie";
-import { LoginDto, RegisterDto } from "./dto";
+import {
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  LoginDto,
+  RegisterDto,
+  ResetPasswordDto,
+} from "./dto";
 
 @Controller("auth")
 export class AuthController {
@@ -46,6 +52,34 @@ export class AuthController {
   @Get("me")
   me(@CurrentUser() ctx: AuthContext) {
     return this.auth.me(ctx.userId);
+  }
+
+  @Public()
+  @Post("forgot-password")
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.auth.requestPasswordReset(dto.email);
+    // Always the same response — never reveal whether the email exists.
+    return { ok: true };
+  }
+
+  @Public()
+  @Post("reset-password")
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const user = await this.auth.resetPassword(dto.token, dto.password);
+    this.setCookie(res, user);
+    return user;
+  }
+
+  @Post("change-password")
+  async changePassword(
+    @CurrentUser() ctx: AuthContext,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    await this.auth.changePassword(ctx.userId, dto.currentPassword, dto.newPassword);
+    return { ok: true };
   }
 
   private setCookie(res: Response, user: PublicUser): void {

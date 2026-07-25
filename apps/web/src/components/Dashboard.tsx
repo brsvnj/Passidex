@@ -15,6 +15,7 @@ import { formatValue, STATUS_META } from "../format";
 import { parseInput } from "../valueInput";
 import { Analytics } from "./Analytics";
 import { AcceptInvite, TeamManager } from "./Team";
+import { ChangePassword, ResetPassword } from "./Account";
 
 function Bar({ score }: { score: number }) {
   return (
@@ -39,19 +40,28 @@ function Bar({ score }: { score: number }) {
 }
 
 function AuthPanel({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const [orgName, setOrgName] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setErr("");
+    setNotice("");
     try {
+      if (mode === "forgot") {
+        await api.forgotPassword(email.trim());
+        setNotice(
+          "Če ta e-pošta obstaja, smo poslali povezavo za ponastavitev gesla.",
+        );
+        return;
+      }
       const user =
         mode === "login"
           ? await api.login(email.trim(), password)
@@ -73,9 +83,24 @@ function AuthPanel({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
     }
   }
 
-  const input =
-    "w-full px-3 py-2 rounded-[3px] text-sm outline-none";
+  const input = "w-full px-3 py-2 rounded-[3px] text-sm outline-none";
   const inputStyle = { border: `1px solid ${LINE}`, background: "#F5F3EA" };
+  const tab = (m: typeof mode, label: string) => (
+    <button
+      onClick={() => {
+        setMode(m);
+        setErr("");
+        setNotice("");
+      }}
+      className="pb-1"
+      style={{
+        borderBottom: mode === m ? `2px solid ${FOREST}` : "2px solid transparent",
+        opacity: mode === m ? 1 : 0.6,
+      }}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div
@@ -83,26 +108,9 @@ function AuthPanel({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
       style={{ background: PAPER, border: `1px solid ${LINE}` }}
     >
       <div className="flex gap-4 mb-4 text-sm">
-        <button
-          onClick={() => setMode("login")}
-          className="pb-1"
-          style={{
-            borderBottom: mode === "login" ? `2px solid ${FOREST}` : "2px solid transparent",
-            opacity: mode === "login" ? 1 : 0.6,
-          }}
-        >
-          Prijava
-        </button>
-        <button
-          onClick={() => setMode("register")}
-          className="pb-1"
-          style={{
-            borderBottom: mode === "register" ? `2px solid ${FOREST}` : "2px solid transparent",
-            opacity: mode === "register" ? 1 : 0.6,
-          }}
-        >
-          Registracija podjetja
-        </button>
+        {tab("login", "Prijava")}
+        {tab("register", "Registracija podjetja")}
+        {mode === "forgot" && tab("forgot", "Pozabljeno geslo")}
       </div>
 
       <form onSubmit={submit} className="space-y-3">
@@ -134,18 +142,25 @@ function AuthPanel({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
           style={inputStyle}
           required
         />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder={mode === "register" ? "Geslo (min. 8 znakov)" : "Geslo"}
-          className={input}
-          style={inputStyle}
-          required
-        />
+        {mode !== "forgot" && (
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={mode === "register" ? "Geslo (min. 8 znakov)" : "Geslo"}
+            className={input}
+            style={inputStyle}
+            required
+          />
+        )}
         {err && (
           <p className="text-sm" style={{ color: COPPER }}>
             {err}
+          </p>
+        )}
+        {notice && (
+          <p className="text-sm" style={{ color: FOREST }}>
+            {notice}
           </p>
         )}
         <button
@@ -154,9 +169,39 @@ function AuthPanel({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
           className="text-sm px-4 py-2.5 rounded-[3px] w-full disabled:opacity-50"
           style={{ background: FOREST, color: PAPER }}
         >
-          {busy ? "…" : mode === "login" ? "Prijava" : "Ustvari račun"}
+          {busy
+            ? "…"
+            : mode === "login"
+              ? "Prijava"
+              : mode === "register"
+                ? "Ustvari račun"
+                : "Pošlji povezavo"}
         </button>
       </form>
+
+      {mode === "login" && (
+        <button
+          onClick={() => {
+            setMode("forgot");
+            setErr("");
+            setNotice("");
+          }}
+          className="text-xs underline opacity-70 hover:opacity-100 mt-3"
+        >
+          Pozabljeno geslo?
+        </button>
+      )}
+      {mode === "forgot" && (
+        <button
+          onClick={() => {
+            setMode("login");
+            setNotice("");
+          }}
+          className="text-xs underline opacity-70 hover:opacity-100 mt-3"
+        >
+          Nazaj na prijavo
+        </button>
+      )}
     </div>
   );
 }
@@ -760,6 +805,9 @@ export function Dashboard() {
   const [inviteToken, setInviteToken] = useState<string | null>(() =>
     new URLSearchParams(window.location.search).get("invite"),
   );
+  const [resetToken, setResetToken] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get("reset"),
+  );
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [pending, setPending] = useState<
@@ -840,26 +888,39 @@ export function Dashboard() {
     }
   }
 
-  function clearInvite() {
+  function clearUrlToken() {
     window.history.replaceState(
       {},
       "",
       window.location.pathname + window.location.hash,
     );
     setInviteToken(null);
+    setResetToken(null);
   }
 
   if (checking) return <p className="text-sm opacity-60">Nalagam…</p>;
   if (!user) {
+    if (resetToken) {
+      return (
+        <ResetPassword
+          token={resetToken}
+          onAuthed={(u) => {
+            clearUrlToken();
+            setUser(u);
+          }}
+          onCancel={clearUrlToken}
+        />
+      );
+    }
     if (inviteToken) {
       return (
         <AcceptInvite
           token={inviteToken}
           onAuthed={(u) => {
-            clearInvite();
+            clearUrlToken();
             setUser(u);
           }}
-          onCancel={clearInvite}
+          onCancel={clearUrlToken}
         />
       );
     }
@@ -875,9 +936,12 @@ export function Dashboard() {
         <span className="opacity-70">
           {user.orgName} · {user.email}
         </span>
-        <button onClick={logout} className="underline opacity-70 hover:opacity-100">
-          Odjava
-        </button>
+        <span className="flex items-center gap-4">
+          <ChangePassword />
+          <button onClick={logout} className="underline opacity-70 hover:opacity-100">
+            Odjava
+          </button>
+        </span>
       </div>
 
       {summary && (

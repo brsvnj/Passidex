@@ -137,6 +137,21 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   logout: () => req<{ ok: boolean }>("/auth/logout", { method: "POST", body: "{}" }),
+  forgotPassword: (email: string) =>
+    req<{ ok: boolean }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (token: string, password: string) =>
+    req<AuthUser>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    req<{ ok: boolean }>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 
   // team
   teamMembers: () => req<TeamMember[]>("/team"),

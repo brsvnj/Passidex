@@ -117,6 +117,12 @@ inbound webhook are `@Public()`.
 
 After seeding, log in with **`demo@passidex.eu` / `passidex123`**.
 
+**Password reset.** `POST /api/auth/forgot-password` emails a one-time link
+(`$APP_URL/?reset=<token>`, valid 60 min) — the response never reveals whether the
+email exists. `POST /api/auth/reset-password` consumes the token, sets the new
+password, and starts a session. Logged-in users can change their password via
+`POST /api/auth/change-password`.
+
 **Team invitations.** Owners/admins invite colleagues by email
 (`POST /api/team/invitations`); the invitee gets a link
 (`$APP_URL/?invite=<token>`) and accepts via the public
