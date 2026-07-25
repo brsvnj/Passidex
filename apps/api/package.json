@@ -12,6 +12,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "ts-node prisma/seed.ts",
+    "test": "vitest run",
     "lint": "eslint \"src/**/*.ts\""
   },
   "prisma": {
@@ -42,6 +43,7 @@
     "@types/node": "^22.10.0",
     "prisma": "^6.2.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }

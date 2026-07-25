@@ -140,6 +140,18 @@ pnpm dev:api          # http://localhost:3001
 pnpm dev:web          # http://localhost:5173
 ```
 
+## Tests
+
+Unit tests (Vitest) cover the pure core logic — the field-status review rule and
+value validation, the localized email templates, the DPP `dppPath` projection,
+the shared category schema, and the frontend value parser. CI runs
+`install → prisma generate → build → test` on every PR.
+
+```bash
+pnpm test          # all packages
+pnpm -F @passidex/api test
+```
+
 ## Tech stack
 
 - **Frontend:** React, Vite, Tailwind CSS

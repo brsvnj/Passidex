@@ -7,18 +7,7 @@ import {
   requiredFields,
 } from "@passidex/schema";
 import { PrismaService } from "../prisma/prisma.service";
-
-/** Assign a value into a nested object following a dotted path. */
-function setByPath(root: Record<string, unknown>, path: string, value: unknown): void {
-  const parts = path.split(".");
-  let node = root;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const key = parts[i];
-    if (typeof node[key] !== "object" || node[key] === null) node[key] = {};
-    node = node[key] as Record<string, unknown>;
-  }
-  node[parts[parts.length - 1]] = value;
-}
+import { setByPath } from "./set-by-path";
 
 /**
  * Projects a product's CONFIRMED field values into a DPP document keyed by each
