@@ -79,6 +79,23 @@ export interface PendingField extends FieldValue {
   product: { id: string; name: string; categoryKey: string };
 }
 
+export interface TeamMember {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  createdAt: string;
+}
+
+export interface Invitation {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface Supplier {
   id: string;
   name: string;
@@ -120,6 +137,29 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   logout: () => req<{ ok: boolean }>("/auth/logout", { method: "POST", body: "{}" }),
+
+  // team
+  teamMembers: () => req<TeamMember[]>("/team"),
+  teamInvitations: () => req<Invitation[]>("/team/invitations"),
+  invite: (email: string, role: "member" | "admin" = "member") =>
+    req<Invitation>("/team/invitations", {
+      method: "POST",
+      body: JSON.stringify({ email, role }),
+    }),
+  revokeInvitation: (id: string) =>
+    req<{ ok: boolean }>(`/team/invitations/${id}/revoke`, {
+      method: "POST",
+      body: "{}",
+    }),
+  describeInvite: (token: string) =>
+    req<{ email: string; orgName: string; role: string }>(
+      `/invitations/${encodeURIComponent(token)}`,
+    ),
+  acceptInvite: (token: string, input: { name?: string; password: string }) =>
+    req<AuthUser>(`/invitations/${encodeURIComponent(token)}/accept`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
 
   // schema
   categories: () =>

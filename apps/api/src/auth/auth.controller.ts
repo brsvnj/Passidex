@@ -4,8 +4,8 @@ import type { Response } from "express";
 import { AuthService, type PublicUser } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";
 import type { AuthContext } from "./jwt-auth.guard";
-import { SESSION_COOKIE } from "./jwt-auth.guard";
 import { Public } from "./public.decorator";
+import { clearSessionCookie, setSessionCookie } from "./session-cookie";
 import { LoginDto, RegisterDto } from "./dto";
 
 @Controller("auth")
@@ -39,7 +39,7 @@ export class AuthController {
 
   @Post("logout")
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(SESSION_COOKIE, this.cookieOptions());
+    clearSessionCookie(res, this.config);
     return { ok: true };
   }
 
@@ -49,28 +49,6 @@ export class AuthController {
   }
 
   private setCookie(res: Response, user: PublicUser): void {
-    res.cookie(SESSION_COOKIE, this.auth.signToken(user), {
-      ...this.cookieOptions(),
-      maxAge: this.maxAgeMs(),
-    });
-  }
-
-  private cookieOptions() {
-    return {
-      httpOnly: true,
-      sameSite: "lax" as const,
-      secure: this.config.get("COOKIE_SECURE") === "true",
-      path: "/",
-    };
-  }
-
-  /** Parse JWT_EXPIRES like "7d" / "24h" into milliseconds (default 7 days). */
-  private maxAgeMs(): number {
-    const raw = this.config.get<string>("JWT_EXPIRES") || "7d";
-    const m = raw.match(/^(\d+)([dhm])$/);
-    if (!m) return 7 * 24 * 60 * 60 * 1000;
-    const n = Number(m[1]);
-    const unit = { d: 86400, h: 3600, m: 60 }[m[2]] ?? 86400;
-    return n * unit * 1000;
+    setSessionCookie(res, this.auth.signToken(user), this.config);
   }
 }

@@ -14,6 +14,7 @@ import { COPPER, FOREST, INK, LINE, PAPER } from "../theme";
 import { formatValue, STATUS_META } from "../format";
 import { parseInput } from "../valueInput";
 import { Analytics } from "./Analytics";
+import { AcceptInvite, TeamManager } from "./Team";
 
 function Bar({ score }: { score: number }) {
   return (
@@ -756,6 +757,9 @@ function ProductCard({
 export function Dashboard() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
+  const [inviteToken, setInviteToken] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get("invite"),
+  );
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [pending, setPending] = useState<
@@ -836,8 +840,31 @@ export function Dashboard() {
     }
   }
 
+  function clearInvite() {
+    window.history.replaceState(
+      {},
+      "",
+      window.location.pathname + window.location.hash,
+    );
+    setInviteToken(null);
+  }
+
   if (checking) return <p className="text-sm opacity-60">Nalagam…</p>;
-  if (!user) return <AuthPanel onAuthed={setUser} />;
+  if (!user) {
+    if (inviteToken) {
+      return (
+        <AcceptInvite
+          token={inviteToken}
+          onAuthed={(u) => {
+            clearInvite();
+            setUser(u);
+          }}
+          onCancel={clearInvite}
+        />
+      );
+    }
+    return <AuthPanel onAuthed={setUser} />;
+  }
 
   return (
     <div>
@@ -865,6 +892,8 @@ export function Dashboard() {
       <ReviewQueue pending={pending} onChange={refresh} />
 
       <Analytics />
+
+      <TeamManager role={user.role} />
 
       <SuppliersManager suppliers={suppliers} onChange={refresh} />
 

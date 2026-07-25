@@ -117,6 +117,13 @@ inbound webhook are `@Public()`.
 
 After seeding, log in with **`demo@passidex.eu` / `passidex123`**.
 
+**Team invitations.** Owners/admins invite colleagues by email
+(`POST /api/team/invitations`); the invitee gets a link
+(`$APP_URL/?invite=<token>`) and accepts via the public
+`GET /api/invitations/:token` + `POST /api/invitations/:token/accept`, which
+creates their user in the same org and logs them in. `GET /api/team` lists
+members; pending invitations can be revoked. Invitations expire after 14 days.
+
 ## Getting started
 
 ```bash

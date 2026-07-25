@@ -4,6 +4,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard";
+import { InvitationsModule } from "./invitations/invitations.module";
 import { SchemaModule } from "./schema/schema.module";
 import { ProductsModule } from "./products/products.module";
 import { SuppliersModule } from "./suppliers/suppliers.module";
@@ -20,6 +21,7 @@ import { ExportModule } from "./export/export.module";
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,
+    InvitationsModule,
     SchemaModule,
     SuppliersModule,
     ProductsModule,

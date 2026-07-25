@@ -53,6 +53,13 @@ enum DataRequestStatus {
   CLOSED
 }
 
+/// Lifecycle of a team invitation.
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
 // ---------------------------------------------------------------- tenant
 
 model Organization {
@@ -66,6 +73,26 @@ model Organization {
   dataRequests DataRequest[]
   messages     InboundMessage[]
   documents    Document[]
+  invitations  Invitation[]
+}
+
+/// A pending invitation for someone to join an organization's team.
+model Invitation {
+  id              String           @id @default(cuid())
+  orgId           String
+  email           String
+  role            String           @default("member")
+  token           String           @unique
+  status          InvitationStatus @default(PENDING)
+  invitedByUserId String?
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime         @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status])
+  @@index([email])
 }
 
 model User {
