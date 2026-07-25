@@ -1,0 +1,57 @@
+# Passidex — full local stack: PostgreSQL + API + web.
+#   docker compose up --build
+#   # then seed the demo data (optional):
+#   docker compose exec api pnpm --filter @passidex/api prisma:seed
+# Web:  http://localhost:5173   API: http://localhost:3001/api
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: passidex
+      POSTGRES_PASSWORD: passidex
+      POSTGRES_DB: passidex
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U passidex -d passidex"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://passidex:passidex@db:5432/passidex?schema=public
+      API_PORT: "3001"
+      CORS_ORIGINS: http://localhost:5173
+      JWT_SECRET: dev-secret-change-me
+      JWT_EXPIRES: 7d
+      APP_URL: http://localhost:5173
+      # Optional integrations — left blank uses the dev fallbacks
+      # (email → console, AI → skipped, storage → local disk).
+      POSTMARK_SERVER_TOKEN: ""
+      ANTHROPIC_API_KEY: ""
+    ports:
+      - "3001:3001"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3001
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
+
+volumes:
+  pgdata:

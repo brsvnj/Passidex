@@ -126,6 +126,23 @@ members; pending invitations can be revoked. Invitations expire after 14 days.
 
 ## Getting started
 
+### Docker (whole stack, one command)
+
+```bash
+docker compose up --build
+# optional demo data:
+docker compose exec api pnpm --filter @passidex/api prisma:seed
+# Web http://localhost:5173 · API http://localhost:3001/api
+# then log in as demo@passidex.eu / passidex123
+```
+
+Compose runs PostgreSQL, the API (which applies migrations on start), and the web
+SPA behind nginx. With `POSTMARK_SERVER_TOKEN` / `ANTHROPIC_API_KEY` left blank it
+uses the dev fallbacks (email → console logs, AI → skipped, storage → local disk),
+so the full lifecycle works with no external accounts.
+
+### Local (without Docker)
+
 ```bash
 pnpm install
 
