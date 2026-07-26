@@ -497,6 +497,17 @@ function FieldRow({
   const [editing, setEditing] = useState(false);
   const [raw, setRaw] = useState("");
   const [err, setErr] = useState("");
+  const [history, setHistory] = useState<
+    Awaited<ReturnType<typeof api.fieldHistory>> | null
+  >(null);
+
+  async function toggleHistory() {
+    if (history) {
+      setHistory(null);
+      return;
+    }
+    setHistory(await api.fieldHistory(field.id));
+  }
 
   async function save() {
     if (!def) return;
@@ -611,11 +622,53 @@ function FieldRow({
             </button>
           </div>
         )}
+        {!editing && (
+          <button
+            onClick={toggleHistory}
+            className="text-[11px] px-2 py-1 rounded-[3px] opacity-60 hover:opacity-100"
+          >
+            {history ? "Skrij zgodovino" : "Zgodovina"}
+          </button>
+        )}
       </div>
       {err && (
         <p className="text-[11px] mt-1" style={{ color: COPPER }}>
           {err}
         </p>
+      )}
+      {history && (
+        <div
+          className="mt-2 pl-3 space-y-1.5 text-[11px]"
+          style={{ borderLeft: `2px solid ${LINE}` }}
+        >
+          {history.length === 0 ? (
+            <p className="opacity-50">Ni zapisov.</p>
+          ) : (
+            history.map((ev) => {
+              const from = ev.fromStatus ? STATUS_META[ev.fromStatus]?.label : null;
+              const to = STATUS_META[ev.toStatus]?.label ?? ev.toStatus;
+              return (
+                <div key={ev.id} className="flex flex-col">
+                  <span className="opacity-60">
+                    {new Date(ev.at).toLocaleString("sl-SI")} · {ev.actorLabel}
+                    {ev.sourceRef ? ` · vir: ${ev.sourceRef.slice(0, 10)}` : ""}
+                  </span>
+                  <span>
+                    {from ? `${from} → ` : ""}
+                    <strong>{to}</strong>
+                    {ev.newValue != null && (
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                        {" "}
+                        — {formatValue(def, ev.newValue)}
+                      </span>
+                    )}
+                    {ev.note ? <span className="opacity-60"> · {ev.note}</span> : ""}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
       )}
     </div>
   );

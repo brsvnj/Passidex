@@ -15,8 +15,8 @@ export class FieldValuesController {
   }
 
   @Get("field-values/:id/history")
-  history(@Param("id") id: string) {
-    return this.fields.history(id);
+  history(@OrgId() orgId: string, @Param("id") id: string) {
+    return this.fields.history(orgId, id);
   }
 
   @Post("field-values/:id/confirm")

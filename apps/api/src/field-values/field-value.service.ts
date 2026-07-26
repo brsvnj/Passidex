@@ -43,13 +43,44 @@ export class FieldValueService {
     });
   }
 
-  /** Full history of a single field value. */
-  async history(fieldValueId: string) {
-    await this.getOrThrow(fieldValueId);
-    return this.prisma.fieldEvent.findMany({
+  /** Full, tenant-scoped history of a single field value, with actor labels. */
+  async history(orgId: string, fieldValueId: string) {
+    const fv = await this.getOrThrow(fieldValueId);
+    if (fv.product.orgId !== orgId) {
+      throw new NotFoundException(`FieldValue ${fieldValueId} not found`);
+    }
+    const events = await this.prisma.fieldEvent.findMany({
       where: { fieldValueId },
       orderBy: { at: "asc" },
     });
+
+    // Resolve human labels for USER actors.
+    const userIds = [
+      ...new Set(
+        events
+          .filter((e) => e.actorType === ActorType.USER && e.actorId)
+          .map((e) => e.actorId as string),
+      ),
+    ];
+    const users = userIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, email: true, name: true },
+        })
+      : [];
+    const byId = new Map(users.map((u) => [u.id, u.name || u.email]));
+
+    return events.map((e) => ({
+      ...e,
+      actorLabel:
+        e.actorType === ActorType.USER
+          ? (e.actorId && byId.get(e.actorId)) || "uporabnik"
+          : e.actorType === ActorType.AI
+            ? "AI"
+            : e.actorType === ActorType.SUPPLIER
+              ? "dobavitelj"
+              : "sistem",
+    }));
   }
 
   /** The org-wide review queue: everything waiting for a human decision. */

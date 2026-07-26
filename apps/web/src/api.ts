@@ -79,6 +79,19 @@ export interface PendingField extends FieldValue {
   product: { id: string; name: string; categoryKey: string };
 }
 
+export interface FieldEvent {
+  id: string;
+  at: string;
+  actorType: "USER" | "SYSTEM" | "SUPPLIER" | "AI";
+  actorLabel: string;
+  fromStatus: FieldStatus | null;
+  toStatus: FieldStatus;
+  oldValue: unknown;
+  newValue: unknown;
+  note: string | null;
+  sourceRef: string | null;
+}
+
 export interface TeamMember {
   id: string;
   email: string;
@@ -201,6 +214,7 @@ export const api = {
 
   // field-value lifecycle
   pendingFields: () => req<PendingField[]>("/field-values/pending"),
+  fieldHistory: (id: string) => req<FieldEvent[]>(`/field-values/${id}/history`),
   confirmField: (id: string, value?: unknown) =>
     req<FieldValue>(`/field-values/${id}/confirm`, {
       method: "POST",

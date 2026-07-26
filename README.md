@@ -39,7 +39,8 @@ MISSING → REQUESTED → RECEIVED_PENDING → CONFIRMED
   that contributes part of the passport data.
 - Every field-value transition is recorded in an append-only **FieldEvent**
   audit log (who, when, source) — a DPP must stay current across the whole
-  product lifecycle.
+  product lifecycle. `GET /api/field-values/:id/history` returns the tenant-scoped
+  timeline (with actor labels), surfaced per field in the dashboard.
 - Field definitions carry a **`dppPath`** so the passport can be projected into
   GS1 Digital Link / EU DPP Registry format without a data migration.
 
