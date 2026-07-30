@@ -12,7 +12,7 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 30000,
     hookTimeout: 60000,
-    env: { DISABLE_SCHEDULER: "true" },
+    env: { DISABLE_SCHEDULER: "true", DISABLE_THROTTLE: "true" },
   },
   plugins: [
     swc.vite({

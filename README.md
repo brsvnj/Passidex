@@ -124,6 +124,12 @@ email exists. `POST /api/auth/reset-password` consumes the token, sets the new
 password, and starts a session. Logged-in users can change their password via
 `POST /api/auth/change-password`.
 
+**Hardening.** `helmet` sets security headers; `@nestjs/throttler` rate-limits
+every route (120/min) with stricter caps on the sensitive public endpoints
+(login/register 10/min, forgot-password 5/min, invitation accept 20/min, inbound
+webhook 60/min). Set `TRUST_PROXY=true` behind a reverse proxy so limits key off
+the real client IP.
+
 **Team invitations.** Owners/admins invite colleagues by email
 (`POST /api/team/invitations`); the invitee gets a link
 (`$APP_URL/?invite=<token>`) and accepts via the public

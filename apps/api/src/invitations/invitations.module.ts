@@ -8,6 +8,7 @@ import {
   Res,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
 import {
   IsEmail,
@@ -88,6 +89,7 @@ class TeamController {
 
 /** Public invitation acceptance (no session yet). */
 @Controller("invitations")
+@Throttle({ default: { limit: 20, ttl: 60_000 } })
 class InvitationsController {
   constructor(
     private readonly invitations: InvitationsService,
