@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { FieldStatus } from "@prisma/client";
+import * as QRCode from "qrcode";
 import {
   getCategory,
   getFieldDefinition,
@@ -30,6 +31,17 @@ export class PassportExportService {
   private digitalLink(gtin: string | null, passportCode: string): string {
     const host = `https://${this.resolverDomain}`;
     return gtin ? `${host}/01/${gtin}` : `${host}/dpp/${encodeURIComponent(passportCode)}`;
+  }
+
+  /** An SVG QR code encoding the product's GS1 Digital Link, for print/labels. */
+  async qrSvg(orgId: string, productId: string): Promise<string> {
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, orgId },
+      select: { gtin: true, passportCode: true },
+    });
+    if (!product) throw new NotFoundException("Product not found");
+    const link = this.digitalLink(product.gtin, product.passportCode);
+    return QRCode.toString(link, { type: "svg", margin: 1, width: 120 });
   }
 
   async export(orgId: string, productId: string) {

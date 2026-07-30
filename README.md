@@ -106,6 +106,10 @@ GTIN) and a compliance block listing any still-missing required fields. It's a
 pure projection over stored data — when the EU DPP Registry finalises its schema,
 only this serializer changes, not the model.
 
+`GET /api/products/:id/qr` returns an **SVG QR code** encoding that GS1 Digital
+Link — the data carrier that goes on the physical product. The dashboard renders
+it and offers an SVG download.
+
 ## Authentication & multi-tenancy
 
 Every request is scoped to an **organization** (tenant). Auth is email + password

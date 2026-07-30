@@ -65,6 +65,28 @@ describe("product lifecycle (e2e)", () => {
     );
   });
 
+  it("serves a tenant-scoped SVG QR of the passport", async () => {
+    const created = await agent
+      .post("/api/products")
+      .send({ name: "QR izdelek", categoryKey: "textile" })
+      .expect(201);
+
+    const qr = await agent
+      .get(`/api/products/${created.body.id}/qr`)
+      .buffer(true)
+      .parse((res, cb) => {
+        let data = "";
+        res.on("data", (c: Buffer) => (data += c.toString()));
+        res.on("end", () => cb(null, data));
+      })
+      .expect(200)
+      .expect("Content-Type", /image\/svg\+xml/);
+    expect(qr.body as unknown as string).toContain("<svg");
+
+    const other = await registerAgent(app);
+    await other.agent.get(`/api/products/${created.body.id}/qr`).expect(404);
+  });
+
   it("rejects an invalid value against the field type", async () => {
     const created = await agent
       .post("/api/products")

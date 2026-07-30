@@ -211,6 +211,14 @@ export const api = {
       compliance: { complete: boolean; missingRequired: string[] };
       [k: string]: unknown;
     }>(`/products/${id}/passport`),
+  passportQrSvg: async (id: string): Promise<string> => {
+    const res = await fetch(`${API_URL}/api/products/${id}/qr`, {
+      credentials: "include",
+    });
+    if (res.status === 401) throw new UnauthorizedError("Not authenticated");
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    return res.text();
+  },
 
   // field-value lifecycle
   pendingFields: () => req<PendingField[]>("/field-values/pending"),

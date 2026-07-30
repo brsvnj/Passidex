@@ -689,7 +689,19 @@ function ProductCard({
   const [exported, setExported] = useState<Awaited<
     ReturnType<typeof api.exportPassport>
   > | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
   const cat = categoryOrDefault(product.categoryKey);
+
+  function downloadQr() {
+    if (!qr) return;
+    const blob = new Blob([qr], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${product.passportCode}-qr.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function load() {
     const [d, r] = await Promise.all([
@@ -767,13 +779,40 @@ function ProductCard({
           <SendRequest product={product} suppliers={suppliers} onSent={load} />
 
           <div className="mt-2">
-            <button
-              onClick={async () => setExported(await api.exportPassport(product.id))}
-              className="text-[11px] px-2 py-1 rounded-[3px]"
-              style={{ border: `1px solid ${LINE}` }}
-            >
-              Izvozi DPP (GS1)
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => setExported(await api.exportPassport(product.id))}
+                className="text-[11px] px-2 py-1 rounded-[3px]"
+                style={{ border: `1px solid ${LINE}` }}
+              >
+                Izvozi DPP (GS1)
+              </button>
+              <button
+                onClick={async () => setQr(await api.passportQrSvg(product.id))}
+                className="text-[11px] px-2 py-1 rounded-[3px]"
+                style={{ border: `1px solid ${LINE}` }}
+              >
+                QR koda
+              </button>
+            </div>
+
+            {qr && (
+              <div className="mt-2 flex items-center gap-3">
+                <div
+                  className="p-2 rounded-[3px] bg-white inline-flex"
+                  style={{ border: `1px solid ${LINE}` }}
+                  // Server-generated SVG QR of the GS1 Digital Link.
+                  dangerouslySetInnerHTML={{ __html: qr }}
+                />
+                <div className="text-[11px]">
+                  <p className="opacity-70 mb-1">QR na izdelku vodi na passport.</p>
+                  <button onClick={downloadQr} className="underline">
+                    Prenesi SVG
+                  </button>
+                </div>
+              </div>
+            )}
+
             {exported && (
               <div className="mt-2 text-[11px]">
                 <p>
